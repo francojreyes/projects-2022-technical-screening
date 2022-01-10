@@ -38,18 +38,20 @@ const altNumbers = (numArray) => {
     for (let i = 0; i < numArray.length; i++) {
         if (numArray[i] >= 0) {
             numPositive++
-        } else { // < 0
+        } else { // numArray[i] < 0
             numNegative++
         }
     }
     var isCurrPositive = (numPositive >= numNegative)
 
-    // Create alternate array
+    // Create alternate array by moving elements to new array
     var altArray = []
-    var originalLength = numArray.length
-    for (let i = 0; i < originalLength; i++) {
+    while (numArray.length > 0) {
         for (let j = 0; j < numArray.length; j++) {
-            if ((isCurrPositive && numArray[j] >= 0) || (!isCurrPositive && numArray[j] < 0)) {
+            if (
+                (isCurrPositive && numArray[j] >= 0) ||
+                (!isCurrPositive && numArray[j] < 0)
+            ) {
                 // Push to alternate array and remove from original array
                 altArray.push(numArray[j])
                 numArray.splice(j, 1)
