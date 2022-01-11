@@ -30,34 +30,19 @@ var assert = require("assert")
 // Output numArray: []
 // Explanation: Empty array...
 
-// lol idk anything about js this is fully just C with js syntax
 const altNumbers = (numArray) => {
-    // Determine whether to start with positive or negative
-    // Start with whichever is more
-    var numPositive = 0
-    var numNegative = 0
-    for (let i = 0; i < numArray.length; i++) {
-        if (numArray[i] >= 0) {
-            numPositive++
-        } else { // numArray[i] < 0
-            numNegative++
-        }
-    }
-    var isCurrPositive = (numPositive >= numNegative)
+    // Filter out positive and negative numbers
+    let posArray = numArray.filter(x => x >= 0)
+    let negArray = numArray.filter(x => x < 0)
 
-    // Create alternate array by moving elements to new array
-    var altArray = []
-    while (numArray.length > 0) {
-        for (let j = 0; j < numArray.length; j++) {
-            if (
-                (isCurrPositive && numArray[j] >= 0) ||
-                (!isCurrPositive && numArray[j] < 0)
-            ) {
-                // Push to alternate array and remove from original array
-                altArray.push(numArray[j])
-                numArray.splice(j, 1)
-                break
-            }
+    // Merge the two arrays, starting with whichever array is longer
+    let isCurrPositive = (posArray.length >= negArray.length)
+    let altArray = []
+    for (let i = j = k = 0; i < numArray.length; i++) {
+        if (isCurrPositive) {
+            altArray[i] = posArray[j++]
+        } else {
+            altArray[i] = negArray[k++]
         }
         isCurrPositive = !isCurrPositive
     }
