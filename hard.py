@@ -23,63 +23,6 @@ with open("./conditions.json") as f:
     CONDITIONS = json.load(f)
     f.close()
 
-
-def is_closed(string):
-    '''
-    Given a string containing at least one bracket, return whether or not all brackets are closed
-    '''
-    n_open = 0
-    n_close = 0
-    for char in string:
-        if char == '(':
-            n_open += 1
-        elif char == ')':
-            n_close += 1
-
-    return n_open == n_close
-
-
-def custom_split(string):
-    '''
-    Splits an uppercase string into:
-        course codes, "AND", "OR", items contained in brackets, uoc requirements
-    '''
-    simple = string.split()
-    result = []
-    curr_start = 0
-    curr_end = 0
-    while curr_end <= len(simple):
-        curr = ' '.join(simple[curr_start:curr_end]).strip()
-        if "UNITS" in curr:
-            # If this is a uoc requirement, loop until its end
-            while curr_end < len(simple) and (simple[curr_end] not in ["OR", "AND"]):
-                curr_end += 1
-            result.append(' '.join(simple[curr_start:curr_end]).strip())
-            curr_start = curr_end
-        elif len(curr) > 0 and curr[0] == '(':
-            # If this an item in brackets, loop to find its closing bracket
-            while curr_end <= len(simple) and not is_closed(curr):
-                curr_end += 1
-                curr = ' '.join(simple[curr_start:curr_end]).strip()
-            result.append(curr[1:-1])
-            curr_start = curr_end
-        elif curr == "OR" or curr == "AND" or is_course_code(curr):
-            # These are separate items
-            result.append(curr)
-            curr_start = curr_end
-
-        curr_end += 1
-
-    # Remove ORs as they are unnecessary
-    while True:
-        try:
-            result.remove("OR")
-        except ValueError:
-            break
-
-    return result
-
-
 def parse_prereqs(conditions):
     """
     Parse a given condition string into a list
@@ -129,11 +72,60 @@ def parse_prereqs(conditions):
     return prereqs
 
 
+def custom_split(string):
+    '''
+    Splits an uppercase string into:
+        course codes, "AND", "OR", items contained in brackets, uoc requirements
+    '''
+    simple = string.split()
+    result = []
+    curr_start = 0
+    curr_end = 0
+    while curr_end <= len(simple):
+        curr = ' '.join(simple[curr_start:curr_end]).strip()
+        if "UNITS" in curr:
+            # If this is a uoc requirement, loop until its end
+            while curr_end < len(simple) and (simple[curr_end] not in ["OR", "AND"]):
+                curr_end += 1
+            result.append(' '.join(simple[curr_start:curr_end]).strip())
+            curr_start = curr_end
+        elif '(' in curr:
+            # If this an item in brackets, loop to find its closing bracket
+            while curr_end <= len(simple) and not is_closed(curr):
+                curr_end += 1
+                curr = ' '.join(simple[curr_start:curr_end]).strip()
+            result.append(curr[1:-1])
+            curr_start = curr_end
+        elif curr == "OR" or curr == "AND" or is_course_code(curr):
+            # These are separate items
+            result.append(curr)
+            curr_start = curr_end
+
+        curr_end += 1
+
+    # Remove "OR"s as they are unnecessary
+    while True:
+        try:
+            result.remove("OR")
+        except ValueError:
+            break
+
+    return result
+
+
+def is_closed(string):
+    '''
+    Given a string containing at least one bracket, return whether or not all brackets are closed
+    '''
+    return string.count('(') == string.count(')')
+
+
 def is_course_code(s):
     '''
     Given a string, return whether or not it is a course code
+    A course code is either 4 letters followed by 4 numbers, or just 4 numbers
     '''
-    return (len(s) == 8 and s[0:4].isupper() and s[4:8].isnumeric()) or \
+    return (len(s) == 8 and s[0:4].isalpha() and s[4:8].isnumeric()) or \
            (len(s) == 4 and s.isnumeric())
 
 
