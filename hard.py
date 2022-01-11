@@ -1,120 +1,189 @@
 """
-Inside conditions.json, you will see a subset of UNSW courses mapped to their 
+Inside conditions.json, you will see a subset of UNSW courses mapped to their
 corresponding text conditions. We have slightly modified the text conditions
 to make them simpler compared to their original versions.
 
-Your task is to complete the is_unlocked function which helps students determine 
-if their course can be taken or not. 
+Your task is to complete the is_unlocked function which helps students determine
+if their course can be taken or not.
 
 We will run our hidden tests on your submission and look at your success rate.
-We will only test for courses inside conditions.json. We will also look over the 
+We will only test for courses inside conditions.json. We will also look over the
 code by eye.
 
 NOTE: This challenge is EXTREMELY hard and we are not expecting anyone to pass all
 our tests. In fact, we are not expecting many people to even attempt this.
-For complete transparency, this is worth more than the easy challenge. 
+For complete transparency, this is worth more than the easy challenge.
 A good solution is favourable but does not guarantee a spot in Projects because
 we will also consider many other criteria.
 """
 import json
-import sys
 
 # NOTE: DO NOT EDIT conditions.json
 with open("./conditions.json") as f:
     CONDITIONS = json.load(f)
     f.close()
 
-def parse_prereqs(course: str):
+
+def is_closed(string):
+    '''
+    Given a string containing at least one bracket, return whether or not all brackets are closed
+    '''
+    n_open = 0
+    n_close = 0
+    for char in string:
+        if char == '(':
+            n_open += 1
+        elif char == ')':
+            n_close += 1
+
+    return n_open == n_close
+
+
+def custom_split(string):
+    '''
+    Splits an uppercase string into:
+        course codes, "AND", "OR", items contained in brackets, uoc requirements
+    '''
+    simple = string.split()
+    result = []
+    curr_start = 0
+    curr_end = 0
+    while curr_end <= len(simple):
+        curr = ' '.join(simple[curr_start:curr_end]).strip()
+        if "UNITS" in curr:
+            # If this is a uoc requirement, loop until its end
+            while curr_end < len(simple) and (simple[curr_end] not in ["OR", "AND"]):
+                curr_end += 1
+            result.append(' '.join(simple[curr_start:curr_end]).strip())
+            curr_start = curr_end
+        elif len(curr) > 0 and curr[0] == '(':
+            # If this an item in brackets, loop to find its closing bracket
+            while curr_end <= len(simple) and not is_closed(curr):
+                curr_end += 1
+                curr = ' '.join(simple[curr_start:curr_end]).strip()
+            result.append(curr[1:-1])
+            curr_start = curr_end
+        elif curr == "OR" or curr == "AND" or is_course_code(curr):
+            # These are separate items
+            result.append(curr)
+            curr_start = curr_end
+
+        curr_end += 1
+
+    # Remove ORs as they are unnecessary
+    while True:
+        try:
+            result.remove("OR")
+        except ValueError:
+            break
+
+    return result
+
+
+def parse_prereqs(conditions):
     """
-    Given a course code, return a list with a set of conditions that must each be met
-    These conditions are either:
-        A list of strings, the student must have completed a course in this string
-        A list of lists of strings, similar to above
-        A tuple with an int and a list of strings, there must be at least int amount of strings containing one of the strings in the list
+    Parse a given condition string into a list
+    Each item is a list representing separate AND conditions (all must be met)
+    Each item list represents a set of OR conditions (at least one must be met)
+    The item lists may contain:
+        - A string, which must be a substring of one of the student's courses
+        - A tuple of form (int, [str]), the student must have at least int amount of
+          courses containing any of the strings in the list
     """
-    prereqs = []
-    # Get the condition and string and convert to uppercase
-    with open("conditions.json") as FILE:
-        conditions = json.load(FILE)[course].upper()
-    
-    # Remove the leading "Prereqs:" from string
+    # Remove the leading "Prereqs:" or similar from string
     if ':' in conditions:
         conditions = conditions[conditions.index(':') + 1:]
 
-    # First split by ANDs
-    and_conditions = [s.strip("( ).,") for s in conditions.split("AND")]
+    # Split
+    conditions = custom_split(conditions)
 
-    for ac in and_conditions:
-        current_and = []
-        # Now split by OR and add to a list in the list
-        or_conditions = [s.strip("( ).,") for s in ac.split("OR")]
-        for oc in or_conditions:
-            if is_course_code(oc):
-                current_and.append(oc)
-            elif "UNITS" in oc:
-                oc_split = oc.split()
-                uoc_required = int(oc_split[oc_split.index("UNITS") - 1])
-                uoc_conditions = []
-                if "IN" in oc:
-                    if "LEVEL" in oc:
-                        level_idx = oc_split.index("LEVEL")
-                        uoc_conditions.append(oc_split[level_idx + 2] + oc_split[level_idx + 1])
-                    else:
-                        for course in oc_split[oc_split.index("IN") + 1:]:
-                            uoc_conditions.append(course.strip("( ).,"))
+    # Assemble as described in docstring
+    prereqs = []
+    curr_and = []
+    for cond in conditions:
+        if cond == 'AND':
+            prereqs.append(curr_and.copy())
+            curr_and = []
+        elif is_course_code(cond):
+            curr_and.append(cond)
+        elif "OR" in cond or "AND" in cond:
+            curr_and.append(parse_prereqs(cond))
+        elif "UNITS" in cond:
+            cond_split = cond.split()
+            uoc_required = int(cond_split[cond_split.index("UNITS") - 1])
+            uoc_conditions = []
+            if "IN" in cond:
+                if "LEVEL" in cond:
+                    level_idx = cond_split.index("LEVEL")
+                    uoc_conditions.append(
+                        cond_split[level_idx + 2] + cond_split[level_idx + 1])
                 else:
-                    uoc_conditions.append("")
-
-                current_and.append((uoc_required // 6, uoc_conditions))
-
-        if current_and != []:
-            prereqs.append(current_and)
+                    for course in cond_split[cond_split.index("IN") + 1:]:
+                        uoc_conditions.append(course.strip("( ).,"))
+            else:
+                uoc_conditions.append("")
+            curr_and.append((uoc_required // 6, uoc_conditions))
+    if curr_and != []:
+        prereqs.append(curr_and)
 
     return prereqs
 
-def is_course_code(s: str):
+
+def is_course_code(s):
     '''
     Given a string, return whether or not it is a course code
     '''
     return (len(s) == 8 and s[0:4].isupper() and s[4:8].isnumeric()) or \
            (len(s) == 4 and s.isnumeric())
 
+
+def meets_prereq_list(courses_list, prereqs):
+    '''
+    Given a list of prereqs, return whether or not the given course list
+    satisfies ALL prereqs
+    '''
+    for prereq in prereqs:
+        if not meets_prereq(courses_list, prereq):
+            return False
+    return True
+
+
+def meets_prereq(courses_list, prereq):
+    '''
+    Return if the given courses list satisfies the given prereq
+    '''
+    for item in prereq:
+        if isinstance(item, str):
+            if any(item in course for course in courses_list):
+                return True
+        elif isinstance(item, tuple):
+            matches = 0
+            for course_code in courses_list:
+                if any(substring in course_code for substring in item[1]):
+                    matches += 1
+            if matches >= item[0]:
+                return True
+        elif isinstance(item, list):
+            if meets_prereq_list(courses_list, item):
+                return True
+
+    return False
+
+
 def is_unlocked(courses_list, target_course):
-    """Given a list of course codes a student has taken, return true if the target_course 
+    """Given a list of course codes a student has taken, return true if the target_course
     can be unlocked by them.
-    
+
     You do not have to do any error checking on the inputs and can assume that
     the target_course always exists inside conditions.json
 
     You can assume all courses are worth 6 units of credit
     """
-    prereqs = parse_prereqs(target_course)
 
-    print(prereqs)
+    prereqs = parse_prereqs(CONDITIONS[target_course].upper())
+    return meets_prereq_list(courses_list, prereqs)
 
-    for pr in prereqs:
-        for item in pr:
-            if isinstance(item, str):
-                if not any(x in y for x in pr for y in courses_list):
-                    return False
-            # if isinstance(item, list):
-            #     for l in pr:
-            #         if not any(x in y for x in l for y in courses_list):
-            #             return False
-            if isinstance(item, tuple):
-                matches = 0
-                for substring in item[1]:
-                    for course_code in courses_list:
-                        if substring in course_code:
-                            matches += 1
-                if matches < item[0]:
-                    return False
-
-    return True
 
 
 if __name__ == '__main__':
-    print(parse_prereqs(sys.argv[1]))
-    # print(is_unlocked(["COMP1521", "COMP1531", "COMP1511", "COMP2521", "COMP2511", "COMP2000"], "COMP3901"))
-
-    
+    print(is_unlocked(["MATH1081", "COMP1511"], "COMP9302"))
