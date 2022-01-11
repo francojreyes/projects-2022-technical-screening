@@ -30,6 +30,7 @@ var assert = require("assert")
 // Output numArray: []
 // Explanation: Empty array...
 
+// lol idk anything about js this is fully just C with js syntax
 const altNumbers = (numArray) => {
     // Determine whether to start with positive or negative
     // Start with whichever is more
