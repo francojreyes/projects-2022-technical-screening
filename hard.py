@@ -149,11 +149,13 @@ def is_course_code(s):
     return (len(s) == 8 and s[0:4].isalpha() and s[4:8].isnumeric()) or \
            (len(s) == 4 and s.isnumeric())
 
+
 def is_discipline(s):
     '''
     Return if a given string is a discipline name i.e. 4 leters
     '''
     return len(s) == 4 and s.isalpha()
+
 
 def meets_prereq_list(courses_list, prereqs):
     '''
@@ -169,6 +171,7 @@ def meets_prereq_list(courses_list, prereqs):
 def meets_prereq(courses_list, prereq):
     '''
     Return if the given courses list satisfies the given prereq
+    A prereq is a list of criteria where at least one must be satisfied
     '''
     for item in prereq:
         if isinstance(item, str):
@@ -201,7 +204,6 @@ def is_unlocked(courses_list, target_course):
     prereqs = parse_prereqs(CONDITIONS[target_course].upper())
     print(prereqs)
     return meets_prereq_list(courses_list, prereqs)
-
 
 
 if __name__ == '__main__':
