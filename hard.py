@@ -202,7 +202,6 @@ def is_unlocked(courses_list, target_course):
     """
 
     prereqs = parse_prereqs(CONDITIONS[target_course].upper())
-    print(prereqs)
     return meets_prereq_list(courses_list, prereqs)
 
 
