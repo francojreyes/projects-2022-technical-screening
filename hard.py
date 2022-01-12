@@ -29,7 +29,9 @@ def custom_split(s):
     Splits an uppercase string into:
         course codes, "AND", "OR", items contained in brackets, uoc requirements
     '''
+    # First split normally to then rejoin certain items
     simple = s.split()
+
     result = []
     curr_start = 0
     curr_end = 0
@@ -48,19 +50,15 @@ def custom_split(s):
                 curr = ' '.join(simple[curr_start:curr_end]).strip(" .,")
             result.append(curr[1:-1])
             curr_start = curr_end
-        elif curr == "OR" or curr == "AND" or is_course_code(curr):
+        elif curr == "AND" or is_course_code(curr):
             # These are separate items
             result.append(curr)
             curr_start = curr_end
+        elif curr == "OR":
+            # Unnecessary
+            curr_start = curr_end
 
         curr_end += 1
-
-    # Remove "OR"s as they are unnecessary
-    while True:
-        try:
-            result.remove("OR")
-        except ValueError:
-            break
 
     return result
 
@@ -74,11 +72,10 @@ def parse_prereqs(conditions):
         - A string, which must be a substring of one of the student's courses
         - A tuple of form (int, [str]), the student must have at least int amount of
           courses containing any of the strings in the list
-        - Nested lists of the same form
+        - A list of the same form
     """
     # Remove the leading "Prereqs:" or similar from string
-    if ':' in conditions:
-        conditions = conditions[conditions.index(':') + 1:]
+    conditions = conditions[conditions.find(':') + 1:]
 
     # Split
     conditions = custom_split(conditions)
@@ -88,7 +85,7 @@ def parse_prereqs(conditions):
     curr_and = []
     for cond in conditions:
         if cond == 'AND':
-            # End the current condition and start a new one
+            # End the current prereq and start a new one
             prereqs.append(curr_and.copy())
             curr_and = []
         elif is_course_code(cond):
@@ -121,9 +118,9 @@ def parse_uoc_condition(s):
             level_idx = split.index("LEVEL")
             uoc_conditions.append(
                 split[level_idx + 2] + split[level_idx + 1])
-        elif is_discipline(split[split.index("IN") + 1]):
+        elif "COURSES" in s:
             # Courses from a given discipline
-            uoc_conditions.append(split[split.index("IN") + 1])
+            uoc_conditions.append(split[split.index("COURSES") - 1])
         else:
             # List of specific courses
             for course in split[split.index("IN") + 1:]:
@@ -148,13 +145,6 @@ def is_course_code(s):
     '''
     return (len(s) == 8 and s[0:4].isalpha() and s[4:8].isnumeric()) or \
            (len(s) == 4 and s.isnumeric())
-
-
-def is_discipline(s):
-    '''
-    Return if a given string is a discipline name i.e. 4 leters
-    '''
-    return len(s) == 4 and s.isalpha()
 
 
 def meets_prereq_list(courses_list, prereqs):
@@ -206,5 +196,11 @@ def is_unlocked(courses_list, target_course):
 
 
 if __name__ == '__main__':
-    import sys
-    is_unlocked([], sys.argv[1])
+    import random
+    all_courses = list(CONDITIONS.keys())
+    course_lists = []
+    for _ in range(10):
+        course_lists.append(random.choice(all_courses))
+    target_course = random.choice(all_courses)
+
+    print(set(course_lists), "COMP9491", is_unlocked(set(course_lists), "COMP9491"))
