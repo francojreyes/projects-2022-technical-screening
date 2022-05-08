@@ -25,42 +25,15 @@ with open("./conditions.json") as f:
     f.close()
 
 
-def custom_split(s: str) -> list:
-    '''
-    Splits an uppercase string into:
-        course codes, "AND", "OR", items contained in brackets, uoc requirements
-    '''
-    # First split normally to then rejoin certain items
-    simple = s.split()
-
-    result = []
-    curr_start = 0
-    curr_end = 0
-    while curr_end <= len(simple):
-        curr = ' '.join(simple[curr_start:curr_end]).strip(" .,")
-        if "UNITS" in curr:
-            # If this is a uoc requirement, loop until its end
-            while curr_end < len(simple) and (simple[curr_end] not in ["OR", "AND"]):
-                curr_end += 1
-            result.append(' '.join(simple[curr_start:curr_end]).strip(" .,"))
-            curr_start = curr_end
-        elif '(' in curr:
-            # If this an item in brackets, loop to find its closing bracket
-            while curr_end < len(simple) and not is_closed(simple[curr_start:curr_end]):
-                curr_end += 1
-            result.append(' '.join(simple[curr_start:curr_end]).strip(" .,"))
-            curr_start = curr_end
-        elif curr == "AND" or re.fullmatch(COURSE_CODE_REGEX, curr):
-            # These are separate items
-            result.append(curr)
-            curr_start = curr_end
-        elif curr == "OR":
-            # Unnecessary
-            curr_start = curr_end
-
-        curr_end += 1
-
-    return result
+def is_unlocked(courses_list: list, target_course: str) -> bool:
+    """Given a list of course codes a student has taken, return true if the target_course
+    can be unlocked by them.
+    You do not have to do any error checking on the inputs and can assume that
+    the target_course always exists inside conditions.json
+    You can assume all courses are worth 6 units of credit
+    """
+    prereqs = parse_prereqs(CONDITIONS[target_course])
+    return all(meets_prereq(courses_list, prereq) for prereq in prereqs)
 
 
 def parse_prereqs(conditions: str) -> list:
@@ -104,6 +77,79 @@ def parse_prereqs(conditions: str) -> list:
     return prereqs
 
 
+def meets_prereq(courses_list: list, prereq: list) -> bool:
+    '''
+    Return if the given courses list satisfies the given prereq
+    A prereq is a list of criteria where at least one must be satisfied
+    '''
+    # Loop through all items and return True if any are met
+    for item in prereq:
+        if isinstance(item, str):
+            # If it is a string, check if any course in courses list is substring
+            if any(item in course for course in courses_list):
+                return True
+        elif isinstance(item, tuple):
+            # If it is a tuple, count the number of courses that contain one of the target strings
+            num, strings = item
+            if sum(any(s in course for s in strings) for course in courses_list) >= num:
+                return True
+        elif isinstance(item, list):
+            # If it is a list, recursively check it
+            if all(meets_prereq(courses_list, p) for p in item):
+                return True
+
+    return False
+
+
+def custom_split(s: str) -> list:
+    '''
+    Splits an uppercase string into:
+        course codes, "AND", items contained in brackets, uoc requirements
+    '''
+    # First split normally to then rejoin certain items
+    simple = s.split()
+    if len(simple) <= 1:
+        return simple
+
+    result = []
+    curr = simple[0].strip(" .,")
+    i = 1
+    while i <= len(simple):
+        reset = True
+        if "UNITS" in curr:
+            # If this is a uoc requirement, loop until its end
+            while i < len(simple) and (simple[i] not in ["OR", "AND"]):
+                curr += ' ' + simple[i].strip(" .,")
+                i += 1
+            result.append(curr)
+        elif '(' in curr:
+            # If this an item in brackets, loop to find its closing bracket
+            while i < len(simple) and curr.count('(') != curr.count(')'):
+                curr += ' ' + simple[i].strip(" .,")
+                i += 1
+            result.append(curr)
+        elif curr == "AND" or re.fullmatch(COURSE_CODE_REGEX, curr):
+            # These are separate items
+            result.append(curr)
+        elif curr == "OR":
+            # Discarded
+            pass
+        else:
+            # If no special case was met, continue
+            reset = False
+
+        # If not at end of string, continue taking strings
+        # Reset if necessary, otherwise append
+        if i < len(simple):
+            if reset:
+                curr = simple[i].strip(" .,")
+            else:
+                curr += ' ' + simple[i].strip(" .,")
+        i += 1
+
+    return result
+
+
 def parse_uoc_condition(s: str) -> tuple:
     '''
     Given a string detailing a UOC condition, return a tuple of the form:
@@ -130,48 +176,6 @@ def parse_uoc_condition(s: str) -> tuple:
         uoc_conditions.append("")
 
     return (uoc_required // 6, uoc_conditions)
-
-
-def is_closed(strings: list) -> bool:
-    '''
-    Given an ordered list of strings, return whether or not all brackets are closed
-    '''
-    return sum(s.count('(') for s in strings) == sum(s.count(')') for s in strings)
-
-
-def meets_prereq(courses_list: list, prereq: list) -> bool:
-    '''
-    Return if the given courses list satisfies the given prereq
-    A prereq is a list of criteria where at least one must be satisfied
-    '''
-    # Loop through all items and return True if any are met
-    for item in prereq:
-        if isinstance(item, str):
-            # If it is a string, check if any course in courses list is substring
-            if any(item in course for course in courses_list):
-                return True
-        elif isinstance(item, tuple):
-            # If it is a tuple, count the number of courses that contain one of the target strings
-            num, strings = item
-            if sum(any(s in course for s in strings) for course in courses_list) >= num:
-                return True
-        elif isinstance(item, list):
-            # If it is a list, recursively check it
-            if all(meets_prereq(courses_list, p) for p in item):
-                return True
-
-    return False
-
-
-def is_unlocked(courses_list: list, target_course: str) -> bool:
-    """Given a list of course codes a student has taken, return true if the target_course
-    can be unlocked by them.
-    You do not have to do any error checking on the inputs and can assume that
-    the target_course always exists inside conditions.json
-    You can assume all courses are worth 6 units of credit
-    """
-    prereqs = parse_prereqs(CONDITIONS[target_course])
-    return all(meets_prereq(courses_list, prereq) for prereq in prereqs)
 
 
 if __name__ == '__main__':
