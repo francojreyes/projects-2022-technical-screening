@@ -134,11 +134,9 @@ def parse_uoc_condition(s: str) -> tuple:
 
 def is_closed(strings: list) -> bool:
     '''
-    Given a list of strings, return whether or not all brackets are closed
+    Given an ordered list of strings, return whether or not all brackets are closed
     '''
-    open_count = sum(s.count('(') for s in strings)
-    close_count = sum(s.count(')') for s in strings)
-    return open_count == close_count
+    return sum(s.count('(') for s in strings) == sum(s.count(')') for s in strings)
 
 
 def meets_prereq(courses_list: list, prereq: list) -> bool:
